@@ -1,0 +1,156 @@
+---
+output:
+  html_document: default
+  pdf_document: default
+  word_document: default
+---
+# ASSOCIATION RULES - APRIORI ALGORITHM ON THE GROCERY BASKET DATA  
+
+Nurdan Beşli  
+01.03.2023
+
+## INTRODUCTION   
+
+Association rule mining is a popular technique in unsupervised learning that aims to discover relationships between variables in a dataset. These relationships are represented as "if-then" rules that can be used to make predictions or generate insights. In real life, association rule mining has many applications, such as market basket analysis in retail, fraud detection in finance, and customer segmentation in marketing. By identifying patterns and relationships in large datasets, association rule mining can help businesses make more informed decisions and improve their bottom line (Agrawal & Srikant, 1994; Tan, Steinbach, & Kumar, 2006).  
+
+Support, confidence, and lift are important measures used in association rule mining to evaluate the strength and significance of relationships between variables in a dataset.   
+
+**Support** measures the frequency with which a rule occurs in the dataset and is calculated as the number of transactions that contain both items in the rule divided by the total number of transactions (Han & Kamber, 2006).   
+
+**Confidence** measures the strength of the relationship between two items in the rule and is calculated as the number of transactions that contain both items in the rule divided by the number of transactions that contain the antecedent item (Tan, Steinbach, & Kumar, 2006).   
+
+**Lift** is used to determine the degree to which the occurrence of one item is dependent on the occurrence of another item and is calculated as the ratio of the observed frequency of co-occurrence to the expected frequency of co-occurrence under the assumption of independence (Han & Kamber, 2006).  
+
+The aim of this project is to use association rules - apriori algorithm on the grocery basket dataset. The dataset was taken from [Kaglle](https://www.kaggle.com/code/rashikrahmanpritom/apriori-implementation/data?select=basket.csv).  
+
+```{r include=FALSE}
+library(arules)
+library(arulesViz)
+```
+
+## DATA REVIEW   
+
+```{r include=FALSE}
+data <- read.transactions("C:/Users/nurdanbesli/Desktop/basket.csv", format="basket", sep=",", skip=0, header = TRUE)
+```
+
+```{r}
+inspect(data[1:10])
+```
+
+The dataset contains 14963 rows, which means that there are 14963 transactions (or itemsets) in the dataset. The 167 columns indicate that there are 167 unique items in the dataset. The density of the matrix is 0.01520957, which means that only 1.5% of the cells in the matrix contain non-zero values. This confirms that the dataset is sparse.  
+
+The summary also shows the most frequent items in the dataset. Whole milk is the most common item, appearing in 2363 transactions, followed by other vegetables (1827 transactions), rolls/buns (1646 transactions), soda (1453 transactions), yogurt (1285 transactions), and Other (29432 transactions). Other refers to all items other than the top 5 most frequent items.  
+
+The distribution of element (itemset/transaction) length is also shown in the summary. The most common transaction length is two items, which appears in 10012 transactions. The distribution shows that the majority of transactions are between one and four items in length.  
+
+```{r}
+summary(data)
+```
+The below plot shows the top 10 frequent items based on absolute values. Similar to summary table results, it also indicates the most frequent items in the dataset, with whole milk being the most common, followed by other vegetables, rolls/buns, soda, yogurt, and others.
+
+```{r}
+itemFrequencyPlot(data, topN = 15, type="absolute", col="#E34347", main="Item Frequency")
+```
+
+The below plot shows the top 10 frequent items based on relative values.  
+
+```{r}
+itemFrequencyPlot(data, topN = 15, type="relative", col="#E34347", main="Item Frequency")
+```
+
+The below graph depict a group of 200 transactions that were chosen randomly from the complete dataset. The X-axis represents 167 products that were examined, and the Y-axis represents the 200 transaction samples. The black dots displayed on the graphs denote the items that were included in the selected transactions.
+
+```{r}
+image(sample(data, 200))
+```
+
+## APRIORI ALGORITM  
+
+The Apriori algorithm is a widely used data mining algorithm for discovering frequent itemsets in a dataset. This algorithm utilizes a breadth-first search strategy to generate candidate itemsets, and then removes the infrequent itemsets at each iteration. The primary goal of the Apriori algorithm is to identify association rules between items in a transactional database. This can be useful in various applications such as market basket analysis, where one can determine which products are often purchased together (Agrawal & Srikant, 1994; Han & Kamber, 2006).
+
+The below code, the Apriori algorithm was applied with default values (minimum support = 0.1, minimum confidence = 0.8).  
+
+```{r}
+datarules <- apriori(data)
+datarules
+```
+
+As it can be seen in the result above, there is no any rules found for both sets of transactions.
+
+The apriori algorithm was applied again with lower thresholds. The threshold of minimum support was reduced to 0.005, and threshold of minimum confidence was lowered to 0.1.
+
+```{r}
+datarules <- apriori(data, parameter = list(support = 0.005, confidence = 0.1, minlen = 2))
+datarules
+```
+Finally, 19 rules for transactions were found by applying apriori algoritm with lower thresholds of support and confidence.
+
+```{r}
+plot(datarules, method="graph")
+```
+
+
+```{r}
+plot(datarules, method="matrix", measure="lift")
+```
+
+
+```{r}
+plot(datarules, measure=c("support","lift"), shading="confidence")
+```
+
+```{r}
+plot(datarules, method="grouped")
+```
+
+```{r}
+plot(datarules, method="paracoord", control=list(reorder=TRUE))
+```
+
+## EVALUATION OF RESULTS
+
+The below tables show the top 10 association rules generated by the Apriori algorithm with their corresponding support, confidence, coverage, and lift metrics. Each row in the table represents a rule and includes the following columns:  
+**LHS:** The left-hand side of the rule, i.e., the antecedent.  
+**RHS:** The right-hand side of the rule, i.e., the consequent.  
+**Support:** The proportion of transactions that contain both the antecedent and the consequent.  
+**Confidence:** The proportion of transactions that contain the antecedent and also contain the consequent.  
+**Coverage:** The proportion of transactions that contain the antecedent.  
+**Lift:** A measure of the strength of the association between the antecedent and the consequent, with values greater than 1 indicating a positive association.  
+**Count:** The number of transactions that contain both the antecedent and the consequent.  
+
+```{r}
+inspect(sort(datarules, by = "support")[1:10])
+```
+
+In the above table, the results are sorted in descending order based on support.For example, the first row shows that customers who bought "other vegetables" also bought "whole milk" in 222 transactions, which accounts for 1.48% of all transactions in the dataset. The confidence value of 0.12 indicates that out of all transactions that contain "other vegetables," 12.15% also contain "whole milk." The coverage value of 0.12 indicates that "other vegetables" and "whole milk" together appear in 12.21% of all transactions. Finally, the lift value of 0.77 indicates that "other vegetables" and "whole milk" are 0.77 times more likely to be bought together than if they were bought independently.
+
+Overall, these results can be used to inform marketing and sales strategies for the grocery store. For instance, the association between "rolls/buns" and "whole milk" suggests that these two items are often bought together, so they could be placed near each other in the store to encourage customers to buy both. Similarly, the association between "sausage" and "whole milk" could be used to inform targeted promotions or discounts on these items to increase sales.
+
+```{r}
+inspect(sort(datarules, by = "confidence")[1:10])
+```
+
+The rules in the above table are ordered by decreasing confidence, which means that the first rule ({bottled beer} => {whole milk}) has the highest confidence, followed by {sausage} => {whole milk}, {newspapers} => {whole milk}, and so on. These rules suggest that customers who buy certain items are also likely to buy whole milk.The lift values are generally close to 1, which indicates that the antecedent and consequent are not strongly dependent on each other. However, some rules have a lift slightly greater than 1, indicating a positive correlation between the items in the rule.
+
+Overall, the results suggest that whole milk is a popular item that is frequently purchased with other groceries. The association rules can be used to guide marketing and product placement strategies to increase sales of whole milk and other items that are frequently purchased together.
+
+```{r}
+inspect(sort(datarules, by = "lift")[1:10])
+```
+
+The final table above is sorted by the lift measure from high to low, which is a measure of the strength of the association between the items in the rule. The top rule in the table shows that customers who purchase frankfurter are 1.12 times more likely to purchase other vegetables compared to the overall probability of purchasing other vegetables. The support of this rule is 0.0051, which means that about 0.51% of transactions contain both frankfurter and other vegetables. The confidence is 0.136, which means that 13.6% of transactions that contain frankfurter also contain other vegetables. The coverage is 0.038, which means that 3.8% of transactions contain frankfurter. The count is 77, which means that this rule applies to 77 transactions in the dataset.
+
+Similarly, the other rules in the table can be interpreted in a similar way. The lift measure can be used to identify the most interesting rules that have a strong association between the antecedent and the consequent. However, it is important to keep in mind that a high lift value does not necessarily mean that the rule is useful or actionable in practice. It is always important to interpret the rules in the context of the problem and the domain knowledge.
+
+## REFERENCES  
+
+Agrawal, R., & Srikant, R. (1994). Fast algorithms for mining association rules in large databases. In Proceedings of the 20th International Conference on Very Large Data Bases (pp. 487-499).  
+
+Han, J., & Kamber, M. (2006). Data mining: Concepts and techniques (2nd ed.). San Francisco, CA: Morgan Kaufmann.  
+
+Tan, P. N., Steinbach, M., & Kumar, V. (2006). Introduction to data mining (1st ed.). Boston, MA: Pearson Addison Wesley.  
+
+
+
+

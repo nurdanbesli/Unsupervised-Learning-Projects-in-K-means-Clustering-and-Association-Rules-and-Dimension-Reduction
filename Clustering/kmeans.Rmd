@@ -1,0 +1,210 @@
+# K-MEANS CLUSTERING ON COUNTRY DATA
+
+Nurdan Beşli  
+01.03.2023
+
+## INTRODUCTION
+
+K-means clustering is an unsupervised learning technique that aims to group similar data points into K clusters based on their features. It has various real-life applications such as customer segmentation, image processing, and anomaly detection. Customer segmentation is used to divide customers into different groups based on their demographics, behavior, or preferences. In image processing, K-means clustering is used for image compression and to reduce the size of an image without losing important features. Anomaly detection is another important application of K-means clustering that is used to identify unusual data points that deviate significantly from the norm.
+
+Main idea of this study was clustering of countries based on socio-economic and health factors by using K-means algorithm. All data gathering and manipulation were performed in Rstudio. The data sources was [Kaggle](https://www.kaggle.com/datasets/rohan0301/unsupervised-learning-on-country-data?resource=download).
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+library(cluster)
+library(factoextra)
+library(caret)
+library(tidyverse)
+library(mice)
+```
+
+## DATASET REVIEW
+
+```{r}
+data <- read.csv("C:/Users/nurdanbesli/Desktop/Country-data.csv", sep = ",")
+
+head(data)
+```
+
+There are 10 variables and 167 observations in the dataset.
+
+**Variable descriptions**  
+country : Name of the country  
+child_mort : Death of children under 5 years of age per 1000 live births  
+exports : Exports of goods and services per capita. Given as %age of the GDP per capita  
+health : Total health spending per capita. Given as %age of GDP per capita  
+imports : Imports of goods and services per capita. Given as %age of the GDP per capita  
+Income : Net income per person  
+Inflation : The measurement of the annual growth rate of the Total GDP  
+life_expec : The average number of years a new born child would live if the current mortality patterns are to remain the same.  
+total_fer : The number of children that would be born to each woman if the current age-fertility rates remain the same.  
+gdpp : The GDP per capita. Calculated as the Total GDP divided by the total population.  
+
+```{r}
+str(data)
+```
+
+The statistical overview of each variable is specified below. It looks like there are some outlier observations. However, outliers are not removed from the dataset since each observation corresponds one country.
+
+```{r}
+summary(data)
+```
+
+There is no missing value, it is checked with below code.
+
+```{r}
+md.pattern(data)
+```
+
+## K-MEANS CLUSTERING
+
+**Start with scaling**
+
+```{r}
+scaleddata <- preProcess(data, method = c("center", "scale"))
+modeldata <- predict(scaleddata, data)
+```
+
+**Filter only numeric values**
+
+We delete the country name for now, because we won’t use it in clustering. Other variables in in numeric or integer format, we will keep them in our dataset and use them for clustering. In the box plot we can see outliers clearly. As explained before, we do not remove outliers as we need all countries for clustering.
+
+```{r}
+filteredmodeldata <- modeldata[2:10]
+boxplot(filteredmodeldata)
+```
+
+**Find optimum k number with elbow method and silhouette method**
+
+Elbow Method: It is a method that plots the sum of squared error for a range of values of k. If this plot looks like an arm, then k is the value that resembles an elbow is selected. From this elbow value, sum of squared values (inertia) starts decreasing in a linear fashion and thus is considered as an optimal value.
+
+```{r}
+fviz_nbclust(filteredmodeldata, kmeans, method = "wss")
+```
+
+Silhouette Score Method: It is a method that evaluates the quality of clusters in terms of how well data points are clustered with other data points that are similar to each other. This score is calculated using the distance formula and the k value with highest score is selected for modeling.
+
+```{r}
+fviz_nbclust(filteredmodeldata, kmeans, method = "silhouette")
+```
+
+Regarding the results above, optimum k number can be 4 or 5.
+
+**Cluster model**
+
+```{r}
+clustermodel5 <- kmeans(filteredmodeldata, centers = 5, iter.max = 5, nstart = 25)
+clustermodel4 <- kmeans(filteredmodeldata, centers = 4, iter.max = 5, nstart = 25)
+```
+
+**Reverse data**
+
+```{r}
+reverseddata <- filteredmodeldata %>% select(one_of(scaleddata$mean %>% names)) %>%
+  map2_df(scaleddata$std, function(sd, var){var * sd}) %>%
+  map2_df(scaleddata$mean, function(mu, var){var + mu})
+```
+
+**Passing clusters to reversed data**
+
+Clustering with 5 cluster
+
+```{r}
+reverseddata$cluster5 <- clustermodel5$cluster
+reverseddata %>% group_by(cluster5) %>% summarise_all(mean)
+```
+
+Clustering with 4 cluster
+
+```{r}
+reverseddata$cluster4 <- clustermodel4$cluster
+reverseddata %>% group_by(cluster4) %>% summarise_all(mean)
+```
+
+**Visualize by each variable**
+
+Clustering with 5 cluster
+
+```{r}
+par(mfrow= c(3,3))
+boxplot(child_mort ~ cluster5, data = reverseddata)
+boxplot(exports ~ cluster5, data = reverseddata)
+boxplot(health ~ cluster5, data = reverseddata)
+boxplot(imports ~ cluster5, data = reverseddata)
+boxplot(income ~ cluster5, data = reverseddata)
+boxplot(inflation ~ cluster5, data = reverseddata)
+boxplot(life_expec ~ cluster5, data = reverseddata)
+boxplot(total_fer ~ cluster5, data = reverseddata)
+boxplot(gdpp ~ cluster5, data = reverseddata)
+```
+
+Clustering with 4 cluster
+
+```{r}
+par(mfrow= c(3,3))
+boxplot(child_mort ~ cluster4, data = reverseddata)
+boxplot(exports ~ cluster4, data = reverseddata)
+boxplot(health ~ cluster4, data = reverseddata)
+boxplot(imports ~ cluster4, data = reverseddata)
+boxplot(income ~ cluster4, data = reverseddata)
+boxplot(inflation ~ cluster4, data = reverseddata)
+boxplot(life_expec ~ cluster4, data = reverseddata)
+boxplot(total_fer ~ cluster4, data = reverseddata)
+boxplot(gdpp ~ cluster4, data = reverseddata)
+```
+
+**Visualize clusters**
+
+To show clusters in graph with country name, we can assign country names to rownames.
+
+```{r}
+rownames(filteredmodeldata) <- paste(data$country)
+
+```
+
+Clustering with 5 cluster
+
+```{r}
+fviz_cluster(clustermodel5, data = filteredmodeldata, main = "K-means Clustering with 5 cluster",xlab=FALSE, ylab=FALSE)
+```
+
+Clustering with 4 cluster
+
+```{r}
+fviz_cluster(clustermodel4, data = filteredmodeldata, main = "K-means Clustering with 4 cluster",xlab=FALSE, ylab=FALSE)
+```
+
+### FINAL EVALUATION
+The only difference between getting the cluster number 5 or 4 is that a country, Nigeria, has a separate cluster. As can be seen from the graph, when the number of clusters is 5, only Nigeria is in cluster 2. There is no change in other clusters. Therefore, we can choose the optimal number of clusters as 4. As a result, the detail and total number of elements of the clusters obtained from our country dataset using the k-means clustering method are given below.
+
+**Element number of each clusters**
+```{r echo=FALSE}
+numberElement <- reverseddata %>% group_by(cluster4) %>% count
+colnames(numberElement) <- c("cluster","number of element")
+numberElement
+```
+**Cluster 1**
+
+```{r echo=FALSE}
+data$cluster <- reverseddata$cluster4
+data %>% select(country,cluster) %>% filter(cluster == 1)
+```
+
+**Cluster 2**
+
+```{r echo=FALSE}
+data %>% select(country,cluster) %>% filter(cluster == 2)
+```
+
+
+**Cluster 3**
+
+```{r echo=FALSE}
+data %>% select(country,cluster) %>% filter(cluster == 3)
+```
+
+
+**Cluster 4**
+
+```{r echo=FALSE}
+data %>% select(country,cluster) %>% filter(cluster == 4)
+```

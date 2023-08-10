@@ -1,0 +1,181 @@
+# DIMENSION REDUCTION ON THE EMPLOYEE ATRITION AND PERFORMANCE DATA
+
+Nurdan Beşli  
+01.03.2023
+
+## INTRODUCTION 
+
+Dimension reduction is a statistical technique that aims to reduce the number of features in a dataset while retaining as much of the original information as possible (Jolliffe, 2011). It has become increasingly important in many areas of research due to the growing complexity of data. This technique can be achieved using various statistical methods, such as Principal Component Analysis (PCA), Singular Value Decomposition (SVD), and Factor Analysis (FA) (Abdi & Williams, 2010). The aim of dimension reduction is to simplify the data while retaining its essential characteristics, such as patterns, relationships, and structures.
+
+The aim of this project is to use PCA (Principal Component Analysis) algorithm for dimension reduction on the Employee Attrition & Performance dataset. The dataset was taken from [Kaglle](https://www.kaggle.com/datasets/pavansubhasht/ibm-hr-analytics-attrition-dataset?resource=download).  
+
+```{r include=FALSE}
+library(Hmisc)
+library(psych)
+library(corrplot)
+library(caret)
+library(factoextra)
+library(pdp)
+```
+
+## DATA PROCESSING  
+
+**Dataset**  
+
+After downloaded data set, the unnecessary variables were removed from the data set.
+
+```{r}
+data <- read.csv("C:/Users/nurdanbesli/Desktop/employeedata.csv", sep = ",")
+data2 <- data[-c(5,8,9,10,16,22,27)]
+```
+
+**Variable class**  
+
+The variables of BusinessTravel, Attrition, Gender, MaritalStatus and OverTime were in characterc class and had 2 or 3 values. To include them into analysis, their classes were converted into factor and then into number.
+
+```{r echo=TRUE}
+#BusinessTravel
+data2$BusinessTravel <- as.factor(data2$BusinessTravel)
+levels(data2$BusinessTravel) <- c(0, 1, 2)
+data2$BusinessTravel <- as.numeric(data2$BusinessTravel)
+
+#Attrition
+data2$Attrition <- as.factor(data2$Attrition)
+levels(data2$Attrition) <- c(0, 1)
+data2$Attrition <- as.numeric(data2$Attrition)
+
+#Gender
+data2$Gender <- as.factor(data2$Gender)
+levels(data2$Gender) <- c(0, 1)
+data2$Gender <- as.numeric(data2$Gender)
+
+#MaritalStatus
+data2$MaritalStatus <- as.factor(data2$MaritalStatus)
+levels(data2$MaritalStatus) <- c(0, 1, 2)
+data2$MaritalStatus <- as.numeric(data2$MaritalStatus)
+
+#OverTime
+data2$OverTime <- as.factor(data2$OverTime)
+levels(data2$OverTime) <- c(0, 1)
+data2$OverTime <- as.numeric(data2$OverTime)
+```
+
+**Final dataset**  
+
+Final data includes 1470 observations of 28 variables.   
+
+```{r}
+dataFinal <- data2
+str(dataFinal)
+```
+  
+```{r}
+summary(dataFinal)
+```
+**Normalization**
+  
+```{r}
+dataFinalNorm <- preProcess(dataFinal, method=c("center", "scale"))
+dataNorm <- predict(dataFinalNorm, dataFinal)
+```
+  
+```{r echo=TRUE}
+hist.data.frame(dataNorm[1:14])
+```
+```{r echo=TRUE}
+hist.data.frame(dataNorm[15:28])
+```
+
+  
+## KAISER MAYER OLKIN AND BARTLETT'S TESTS    
+
+The Kaiser-Meyer-Olkin (KMO) test is a measure of sampling adequacy used to assess whether a dataset is suitable for factor analysis, while Bartlett's test of sphericity is used to test the null hypothesis that the correlation matrix of the variables is an identity matrix, indicating that the variables are uncorrelated (Field, 2013).
+
+**Correlation Matrix**    
+  
+```{r}
+corMatrix <- cor(dataNorm)
+corrplot(corMatrix, type = "lower", order = "alphabet", tl.col = "black", tl.cex = 1, col=colorRampPalette(c("#99FF33", "#CC0066", "black"))(200))
+```
+   
+**Kaiser-Meyer-Olkin Test**  
+  
+```{r}
+KMO(corMatrix)
+```
+According to the result of Kaiser-Meyer-Olkin test, the test is satisfied as Overall MSA is equal to 0.76., 
+  
+**Bartlett’s Test**  
+  
+```{r}
+cortest.bartlett(corMatrix, n = 1470)
+```
+  
+According to the result of bartlett’s test, correlation matrix is completely different from the identity matrix as the p-value is equal to 0.   
+
+## Principal Component Analysis (PCA)  
+
+Principal Component Analysis (PCA) is a mathematical technique that reduces the dimensionality of high-dimensional data while preserving the most important information (Wold et al., 1987). The aim of PCA is to identify a smaller set of uncorrelated variables, known as principal components, that explain the largest amount of variance in the original data (Shlens, 2014). 
+
+```{r}
+dataPca <- prcomp(dataFinal, center = TRUE, scale = TRUE)
+summary(dataPca)
+```
+
+**Choosing number of components**
+
+```{r}
+eig.val <- get_eigenvalue(dataPca)
+eig.val
+```
+  
+```{r}
+fviz_eig(dataPca, choice = "eigenvalue", ncp = 28, barfill = "#E90064", barcolor = "#B3005E", linecolor = "#060047",  addlabels = TRUE,   main = "Eigenvalues")
+```
+  
+In order to determine the most appropriate number of components to retain in our set, Kaiser's Stopping Rule will be used. This rule recommends that only components with an eigenvalue greater than 1 should be retained (Brown, 2009). As a result, there is 11 components above 1.
+  
+**Scree Plot**  
+
+```{r}
+fviz_eig(dataPca, ncp = 28, barfill = "#E90064", barcolor = "#B3005E",linecolor = "#060047")
+?fviz_eig
+```
+
+Scree plot shows that PC1 explains only 16% of the variation. 11 components explain 63% of the variance. 16 components are able to explain over 80% of the variance. 
+
+**Correlation Circle**  
+  
+```{r}
+fviz_pca_var(dataPca, col.var="contrib")+ scale_color_gradient2(low="#FFBABA", mid="#C85C8E", high="#03001C", midpoint=5)
+```
+
+According to the chart above, variables with the darkest shading are the most significant, while those with the lightest shading are the least important.  
+  
+**Contribution of Variables**  
+  
+```{r}
+fviz_contrib(dataPca, "var", axes = 1:11, fill = "#C85C8E", color = "#7B2869", linecolor = "#060047")
+```
+  
+Based on the graph above, there are 12 most important variables, which are PercentSalaryHike, PerformanceRating, YearsAtCompany, TotalWorkingYears, JobLevel, MaritalStatus, MonthlyIncome, StockOptionLevel, YearsWithCurrManager,YearsInCurrentRole, Attrition and RelationshipSatisfaction.
+
+## REFERENCES
+
+Abdi, H., & Williams, L. J. (2010). Principal component analysis. Wiley interdisciplinary reviews: computational statistics, 2(4), 433-459.
+
+Brown, J. (2009). Choosing the right number of components or factors in PCA and EFA. JALT Testing & Evaluation SIG Newsletter, 13(2). Retrieved from http://hosted.jalt.org/test/bro_30.htm
+
+Field, A. (2013). Discovering statistics using IBM SPSS statistics. Sage.
+
+Jolliffe, I. T. (2011). Principal component analysis. Springer.
+
+Shlens, J. (2014). A tutorial on principal component analysis. arXiv preprint arXiv:1404.1100.
+
+Wold, S., Esbensen, K., & Geladi, P. (1987). Principal component analysis. Chemometrics and intelligent laboratory systems, 2(1-3), 37-52.
+
+
+
+
+
+  
